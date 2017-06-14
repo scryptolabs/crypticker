@@ -28,8 +28,8 @@ if (args) {
     options.pollInterval = parseInt(args.interval, 10);
   }
 
-  if (args.markets && args.markets.length) {
-    options.markets = args.markets.replace(' ', '').split(',');
+  if (args.currencies && args.currencies.length) {
+    options.currencies = args.currencies.replace(' ', '').split(',');
   }
 }
 
@@ -207,7 +207,7 @@ const retrieveMarketData = () => {
         priceData[primaryCurrency][secondaryCurrency] = priceData[primaryCurrency][secondaryCurrency] || {};
         priceData[primaryCurrency][secondaryCurrency] = match;
 
-        if (options.displayPriceBTC) {
+        if (options.displayPriceBTC && primaryCurrency !== 'BTC') {
           priceData[primaryCurrency].BTC = priceData[primaryCurrency].BTC || {};
           priceData[primaryCurrency].BTC = match;
         }
