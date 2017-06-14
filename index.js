@@ -39,8 +39,8 @@ if (args) {
   }
 
   // Set root currency
-  if (args.currency) {
-    options.currency = args.currency;
+  if (args.convert) {
+    options.convert = args.convert;
   }
 
   // Disable BTC price display
@@ -89,7 +89,7 @@ const writeToStdout = (error, priceData) => {
     // Loop through secondary currencies
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe}`]).toFixed(2);
+      const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe.toLowerCase()}`]).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency + leftPad('', options.padding);
       const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;
       let currentPriceValue = +currentPriceData[currentPriceKey];
@@ -193,12 +193,31 @@ const writeToStdout = (error, priceData) => {
   return true;
 };
 
+// Validate supplied options
+const validateOptions = () => {
+  // eslint-disable-next-line max-len
+  const supportedConversions = ['AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'EUR', 'GBP', 'HKD', 'IDR', 'INR', 'JPY', 'KRW', 'MXN', 'RUB', 'USD'];
+  const supportedTimeframes = ['1h', '24h', '7d'];
+
+  if (
+    !options.currencies.length ||
+    supportedConversions.indexOf(options.convert.toUpperCase()) === -1 ||
+    supportedTimeframes.indexOf(options.timeframe.toLowerCase()) === -1
+  ) {
+    writeToStdout(' ⚠ Supplied options are invalid', null);
+
+    return false;
+  }
+
+  return true;
+};
+
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
   const priceData = {};
   const currencyNames = [];
 
-  needle.get(`https://api.coinmarketcap.com/v1/ticker/?convert=${options.currency}`, (error, response) => {
+  needle.get(`https://api.coinmarketcap.com/v1/ticker/?convert=${options.convert}`, (error, response) => {
     const body = response && response.body;
 
     if (!error && body && response.statusCode === 200) {
@@ -210,7 +229,7 @@ const retrieveMarketData = () => {
         }
 
         const primaryCurrency = currency.toUpperCase();
-        const secondaryCurrency = options.currency.toUpperCase();
+        const secondaryCurrency = options.convert.toUpperCase();
 
         currencyNames.push(match.name);
         priceData[primaryCurrency] = priceData[primaryCurrency] || {};
@@ -228,7 +247,7 @@ const retrieveMarketData = () => {
       // Calculate length of longest currency name
       priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
 
-      if (priceData) {
+      if (priceData && sortedCurrencyNames.length) {
         return writeToStdout(null, priceData);
       }
     }
@@ -238,7 +257,9 @@ const retrieveMarketData = () => {
 };
 
 // Kick out the jams
-setInterval(() => {
+if (validateOptions()) {
+  setInterval(() => {
+    retrieveMarketData();
+  }, options.pollInterval);
   retrieveMarketData();
-}, options.pollInterval);
-retrieveMarketData();
+}

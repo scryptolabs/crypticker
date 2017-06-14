@@ -26,7 +26,7 @@ crypticker
 | `--interval` | Integer | Set poll interval in milliseconds |
 | `--currencies` | String | Comma separated list of currency codes |
 | `--timeframe` | String | Set timeframe of display change percentage |
-| `--currency` | String | Set primary currency of displayed prices |
+| `--convert` | String | Set primary currency of displayed prices |
 | `--nobtc` | Boolean | Disable BTC price display |
 
 ### Options
@@ -34,9 +34,9 @@ Currency and application preferences can be managed within `options.json`. If th
 
 | Parameter | Type | Description | Example |
 | --- | --- | --- | --- |
-| pollInterval | Integer | Interval at which to poll API (in milliseconds) | `30000` |
+| pollInterval | Integer | Interval at which to poll API (in milliseconds) | `300000` |
 | padding | Integer | Number of spaces to use between display sections | `8` |
-| currency | String | Primary currency of displayed prices | `usd` |
+| convert | String | Primary currency of displayed prices | `usd` |
 | timeframe | String | Timeframe to display change percentage | `24h` |
 | displayPriceBTC | Boolean | Toggles BTC price display on and off | `true` |
 | history | Object | Parameters around ticker history display | |

@@ -1,7 +1,7 @@
 {
   "pollInterval": 300000,
   "padding": 8,
-  "currency": "usd",
+  "convert": "usd",
   "timeframe": "24h",
   "displayPriceBTC": true,
   "history": {
