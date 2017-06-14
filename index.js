@@ -28,8 +28,24 @@ if (args) {
     options.pollInterval = parseInt(args.interval, 10);
   }
 
+  // Set currencies
   if (args.currencies && args.currencies.length) {
     options.currencies = args.currencies.replace(' ', '').split(',');
+  }
+
+  // Set timeframe
+  if (args.timeframe) {
+    options.timeframe = args.timeframe;
+  }
+
+  // Set root currency
+  if (args.currency) {
+    options.currency = args.currency;
+  }
+
+  // Disable BTC price display
+  if (args.nobtc) {
+    options.displayPriceBTC = false;
   }
 }
 
@@ -77,7 +93,7 @@ const writeToStdout = (limitReached, priceData) => {
 
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentage = +currentPriceData[`percent_change_${options.changeTimeframe}`];
+      const changePercentage = +currentPriceData[`percent_change_${options.timeframe}`];
       const changePercentageFixed = (+changePercentage).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency + leftPad('', options.padding);
       const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;

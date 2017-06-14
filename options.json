@@ -2,7 +2,7 @@
   "pollInterval": 60000,
   "padding": 8,
   "currency": "usd",
-  "changeTimeframe": "24h",
+  "timeframe": "24h",
   "displayPriceBTC": true,
   "history": {
     "enabled": true,
