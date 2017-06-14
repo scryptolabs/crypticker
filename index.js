@@ -64,7 +64,7 @@ const priceDataHistory = {};
 let previousPrimaryCurrency = null;
 let statusOutput = '';
 const lastUpdate = +Date.now();
-const writeToStdout = (limitReached, priceData) => {
+const writeToStdout = (error, priceData) => {
   let outputData = priceData;
 
   // Clear screen
@@ -79,25 +79,20 @@ const writeToStdout = (limitReached, priceData) => {
       outputData = previousPriceData;
     }
 
-    if (limitReached) {
-      statusOutput = colors.red(' ⚠ API limit has been reached') + lastUpdateText;
-    } else {
-      statusOutput = colors.red(' ⚠ Data retrieval error') + lastUpdateText;
-    }
+    statusOutput = colors.red(error) + lastUpdateText;
   }
 
-  const sortedPrimaryCurrencies = _.keys(outputData).sort();
-
-  _.forEach(sortedPrimaryCurrencies, (primaryCurrency) => {
+  // Loop through primary currencies
+  _.forEach(_.keys(outputData).sort(), (primaryCurrency) => {
     const secondaryCurrencies = _.keys(outputData[primaryCurrency]);
 
+    // Loop through secondary currencies
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentage = +currentPriceData[`percent_change_${options.timeframe}`];
-      const changePercentageFixed = (+changePercentage).toFixed(2);
+      const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe}`]).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency + leftPad('', options.padding);
       const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;
-      let lastPriceValue = +currentPriceData[currentPriceKey];
+      let currentPriceValue = +currentPriceData[currentPriceKey];
       let primaryCurrencyOutput = '';
       let changeOutput = '';
       let historyChangeOutput = '';
@@ -136,19 +131,18 @@ const writeToStdout = (limitReached, priceData) => {
         previousPriceData[primaryCurrency][secondaryCurrency] &&
         +(previousPriceData[primaryCurrency][secondaryCurrency][currentPriceKey])
       ) {
-        const currentLastPrice = lastPriceValue.toFixed(2);
-        const previousLastPrice = (previousPriceData[primaryCurrency][secondaryCurrency][currentPriceKey]);
+        const previousPriceValue = (previousPriceData[primaryCurrency][secondaryCurrency][currentPriceKey]);
         const majorThreshold = options.history.majorThreshold;
         const dataKey = primaryCurrency + secondaryCurrency;
         let symbol;
 
         // Determine history symbol
-        if (Math.abs(currentLastPrice - previousLastPrice).toFixed(4) > majorThreshold) {
-          symbol = currentLastPrice > previousLastPrice ?
+        if (Math.abs(currentPriceValue - previousPriceValue).toFixed(4) > majorThreshold) {
+          symbol = currentPriceValue > previousPriceValue ?
             options.history.positiveMajorSymbol :
             options.history.negativeMajorSymbol;
         } else {
-          symbol = currentLastPrice > previousLastPrice ?
+          symbol = currentPriceValue > previousPriceValue ?
             options.history.positiveMinorSymbol :
             options.history.negativeMinorSymbol;
         }
@@ -156,14 +150,14 @@ const writeToStdout = (limitReached, priceData) => {
         priceDataHistory[dataKey] = priceDataHistory[dataKey] || new Array(options.history.length).fill(' ');
 
         if (
-          currentLastPrice > previousLastPrice &&
-          currentLastPrice - previousLastPrice > options.history.minorThreshold
+          currentPriceValue > previousPriceValue &&
+          currentPriceValue - previousPriceValue > options.history.minorThreshold
         ) {
           // Price has increased since last update and was greater than threshold
           priceDataHistory[dataKey].push(colors.green.bold(symbol));
         } else if (
-          currentLastPrice < previousLastPrice &&
-          previousLastPrice - currentLastPrice > options.history.minorThreshold
+          currentPriceValue < previousPriceValue &&
+          previousPriceValue - currentPriceValue > options.history.minorThreshold
         ) {
           // Price has decreased since last update and was greater than threshold
           priceDataHistory[dataKey].push(colors.red.bold(symbol));
@@ -171,21 +165,21 @@ const writeToStdout = (limitReached, priceData) => {
           priceDataHistory[dataKey].push(colors.grey(options.history.neutralSymbol));
         }
 
-        historyChangeOutput = (currentLastPrice - previousLastPrice).toFixed(2);
+        historyChangeOutput = (currentPriceValue - previousPriceValue).toFixed(2);
 
         if (historyChangeOutput >= 0) {
           historyChangeOutput = `+${Math.abs(historyChangeOutput).toFixed(2)}`;
         }
       }
 
-      if (lastPriceValue < 1) {
-        lastPriceValue = lastPriceValue.toFixed(4);
+      if (currentPriceValue < 1) {
+        currentPriceValue = currentPriceValue.toFixed(4);
       } else {
-        lastPriceValue = utility.addCommas(lastPriceValue.toFixed(2));
+        currentPriceValue = utility.addCommas(currentPriceValue.toFixed(2));
       }
 
       // eslint-disable-next-line prefer-template, no-useless-concat, max-len
-      process.stdout.write(primaryCurrencyOutput + secondaryCurrencyOutput + leftPad(lastPriceValue, 10) + ' ' + changeOutput + ` ${(priceDataHistory[primaryCurrency + secondaryCurrency] || '') && priceDataHistory[primaryCurrency + secondaryCurrency].slice(-1 * options.history.length).join('')}` + ` ${colors.grey(historyChangeOutput)}` + '\n');
+      process.stdout.write(primaryCurrencyOutput + secondaryCurrencyOutput + leftPad(currentPriceValue, 10) + ' ' + changeOutput + ` ${(priceDataHistory[primaryCurrency + secondaryCurrency] || '') && priceDataHistory[primaryCurrency + secondaryCurrency].slice(-1 * options.history.length).join('')}` + ` ${colors.grey(historyChangeOutput)}` + '\n');
     });
 
     process.stdout.write('\n');
@@ -237,11 +231,9 @@ const retrieveMarketData = () => {
       if (priceData) {
         return writeToStdout(null, priceData);
       }
-    } else if (response && response.statuscode === 429) {
-      return writeToStdout(true);
     }
 
-    return writeToStdout(false, null);
+    return writeToStdout(' ⚠ Data retrieval error', null);
   });
 };
 

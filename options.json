@@ -1,12 +1,12 @@
 {
-  "pollInterval": 60000,
+  "pollInterval": 300000,
   "padding": 8,
   "currency": "usd",
   "timeframe": "24h",
   "displayPriceBTC": true,
   "history": {
     "enabled": true,
-    "length": 15,
+    "length": 12,
     "minorThreshold": 0.0100,
     "majorThreshold": 0.2000,
     "positiveMajorSymbol": "∙",
