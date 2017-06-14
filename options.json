@@ -1,24 +1,23 @@
 {
-  "app": {
-    "pollInterval": 60000,
-    "padding": 8,
-    "history": {
-      "enabled": true,
-      "length": 15,
-      "minorThreshold": 0.00,
-      "majorThreshold": 0.20,
-      "positiveMajorSymbol": "∙",
-      "positiveMinorSymbol": "⋅",
-      "neutralSymbol": "⋅",
-      "negativeMinorSymbol": "⋅",
-      "negativeMajorSymbol": "∙"
-    }
+  "pollInterval": 60000,
+  "padding": 8,
+  "currency": "usd",
+  "changeTimeframe": "24h",
+  "displayPriceBTC": true,
+  "history": {
+    "enabled": true,
+    "length": 15,
+    "minorThreshold": 0.01,
+    "majorThreshold": 0.20,
+    "positiveMajorSymbol": "∙",
+    "positiveMinorSymbol": "⋅",
+    "neutralSymbol": "⋅",
+    "negativeMinorSymbol": "⋅",
+    "negativeMajorSymbol": "∙"
   },
-  "markets": [
-    "coinbase:btcusd",
-    "coinbase:ethusd",
-    "coinbase:ethbtc",
-    "kraken:ethusd",
-    "kraken:btcusd"
+  "currencies": [
+    "eth",
+    "btc",
+    "gnt"
   ]
 }
