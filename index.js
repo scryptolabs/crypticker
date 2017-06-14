@@ -143,7 +143,7 @@ const writeToStdout = (limitReached, priceData) => {
         let symbol;
 
         // Determine history symbol
-        if (Math.abs(currentLastPrice - previousLastPrice).toFixed(2) > majorThreshold) {
+        if (Math.abs(currentLastPrice - previousLastPrice).toFixed(4) > majorThreshold) {
           symbol = currentLastPrice > previousLastPrice ?
             options.history.positiveMajorSymbol :
             options.history.negativeMajorSymbol;

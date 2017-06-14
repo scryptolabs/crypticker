@@ -7,8 +7,8 @@
   "history": {
     "enabled": true,
     "length": 15,
-    "minorThreshold": 0.01,
-    "majorThreshold": 0.20,
+    "minorThreshold": 0.0100,
+    "majorThreshold": 0.2000,
     "positiveMajorSymbol": "∙",
     "positiveMinorSymbol": "⋅",
     "neutralSymbol": "⋅",
@@ -16,8 +16,8 @@
     "negativeMajorSymbol": "∙"
   },
   "currencies": [
-    "eth",
     "btc",
-    "gnt"
+    "eth",
+    "xrp"
   ]
 }
