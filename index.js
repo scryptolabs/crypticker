@@ -88,10 +88,14 @@ const writeToStdout = (limitReached, priceData) => {
 
       // Show primary currency name
       if (previousPrimaryCurrency !== primaryCurrency) {
-        primaryCurrencyOutput = colors.bold.white(` › ${primaryCurrency}`) + leftPad('', options.padding);
+        primaryCurrencyOutput = colors.bold.white(
+          ` › ${rightPad(currentPriceData.name, priceData.longestCurrencyNameLength)}`
+        ) + leftPad('', options.padding);
         previousPrimaryCurrency = primaryCurrency;
       } else {
-        primaryCurrencyOutput = colors.bold(leftPad('', 3 + 3)) + leftPad('', options.padding);
+        primaryCurrencyOutput = colors.bold(
+          rightPad(' ', priceData.longestCurrencyNameLength + 3)
+        ) + leftPad('', options.padding);
       }
 
       // Show percent change in last 24 hours
@@ -182,6 +186,7 @@ const writeToStdout = (limitReached, priceData) => {
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
   const priceData = {};
+  const currencyNames = [];
 
   needle.get(`https://api.coinmarketcap.com/v1/ticker/?convert=${options.currency}`, (error, response) => {
     const body = response && response.body;
@@ -197,6 +202,7 @@ const retrieveMarketData = () => {
         const primaryCurrency = currency.toUpperCase();
         const secondaryCurrency = options.currency.toUpperCase();
 
+        currencyNames.push(match.name);
         priceData[primaryCurrency] = priceData[primaryCurrency] || {};
         priceData[primaryCurrency][secondaryCurrency] = priceData[primaryCurrency][secondaryCurrency] || {};
         priceData[primaryCurrency][secondaryCurrency] = match;
@@ -206,6 +212,11 @@ const retrieveMarketData = () => {
           priceData[primaryCurrency].BTC = match;
         }
       });
+
+      const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+
+      // Calculate length of longest currency name
+      priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
 
       if (priceData) {
         return writeToStdout(null, priceData);
