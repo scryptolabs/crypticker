@@ -8,6 +8,7 @@ const os = require('os');
 const fs = require('fs');
 const yargs = require('yargs');
 const Promise = require('bluebird');
+const url = require('url');
 let options = require('./options.json');
 
 const args = yargs.argv;
@@ -81,7 +82,7 @@ const writeToStdout = (error, priceData) => {
     // Loop through secondary currencies
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe.toLowerCase()}`]).toFixed(2);
+      const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe.toLowerCase()}_${secondaryCurrency.toLowerCase()}`]).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency.toUpperCase() + leftPad('', options.padding);
       const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;
       let currentPriceValue = +currentPriceData[currentPriceKey];
@@ -108,6 +109,11 @@ const writeToStdout = (error, priceData) => {
         changeOutput = rightPad(colors.red(`▼ ${(changePercentageFixed * -1).toFixed(2).toString()}%`), 8);
       } else {
         changeOutput = rightPad(`- ${changePercentageFixed.toString()}%`, 8);
+      }
+
+      // Do not show change output for non-USD until API supports it
+      if (secondaryCurrency.toLowerCase() !== 'usd') {
+        changeOutput = rightPad(' ', 7);
       }
 
       // Show history of price updates
@@ -230,11 +236,26 @@ const retrieveMarketData = () => {
     });
 
     return current;
-  }).map(response => response.body).then(results => {
+  }).map(response => response).then(results => {
     results.forEach(result => {
+      const parsedUrl = url.parse(result.req.path, true);
+
       // Flatten data values into single currency object
-      result.forEach(item => {
+      result.body.forEach(item => {
         exchangeData[item.symbol] = exchangeData[item.symbol] || {};
+        // Unfortunately, API doesn't calculate 24 hour percentage changes per conversion currency
+        item[`percent_change_1h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_1h;
+        item[`percent_change_24h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_24h;
+        item[`percent_change_7d_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_7d;
+        item = _.omit(item, [
+          'id',
+          'available_supply',
+          'total_supply',
+          'percent_change_1h',
+          'percent_change_24h',
+          'percent_change_7d',
+          'last_updated'
+        ]);
         _.merge(exchangeData[item.symbol], item);
       });
     });
