@@ -27,7 +27,7 @@ crypticker
 | `--currencies` | String | Comma separated list of currency codes |
 | `--timeframe` | String | Set timeframe of display change percentage |
 | `--convert` | String | Set primary currency of displayed prices |
-| `--nobtc` | Boolean | Disable BTC price display |
+| `--nobtc` | | Disable BTC price display |
 
 ### Options
 Currency and application preferences can be managed within `options.json`. If the package was installed globally, the installation directory (and corresponding `options.json`) file may be found with `npm ls crypticker`. Application will prefer an options file located at `~/.crypticker` if one exists - this can be used to preserve options between updates.

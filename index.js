@@ -7,9 +7,11 @@ const _ = require('lodash');
 const os = require('os');
 const fs = require('fs');
 const yargs = require('yargs');
+const Promise = require('bluebird');
 let options = require('./options.json');
 
 const args = yargs.argv;
+const get = Promise.promisify(needle.get, needle);
 
 // Check for local configuration
 if (fs.existsSync(`${os.homedir()}/.crypticker`)) {
@@ -28,24 +30,14 @@ if (args) {
     options.pollInterval = parseInt(args.interval, 10);
   }
 
-  // Set currencies
-  if (args.currencies && args.currencies.length) {
-    options.currencies = args.currencies.replace(' ', '').split(',');
+  // Set exchanges
+  if (args.exchanges && args.exchanges.length) {
+    options.exchanges = options.exchanges.replace(/[A-Za-z,:]+/, '').split(',');
   }
 
   // Set timeframe
   if (args.timeframe) {
     options.timeframe = args.timeframe;
-  }
-
-  // Set root currency
-  if (args.convert) {
-    options.convert = args.convert;
-  }
-
-  // Disable BTC price display
-  if (args.nobtc) {
-    options.displayPriceBTC = false;
   }
 }
 
@@ -90,7 +82,7 @@ const writeToStdout = (error, priceData) => {
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
       const changePercentageFixed = (+currentPriceData[`percent_change_${options.timeframe.toLowerCase()}`]).toFixed(2);
-      const secondaryCurrencyOutput = secondaryCurrency + leftPad('', options.padding);
+      const secondaryCurrencyOutput = secondaryCurrency.toUpperCase() + leftPad('', options.padding);
       const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;
       let currentPriceValue = +currentPriceData[currentPriceKey];
       let primaryCurrencyOutput = '';
@@ -118,11 +110,6 @@ const writeToStdout = (error, priceData) => {
         changeOutput = rightPad(`- ${changePercentageFixed.toString()}%`, 8);
       }
 
-      // Do not show change output for BTC
-      if (secondaryCurrency === 'BTC') {
-        changeOutput = rightPad(' ', 7);
-      }
-
       // Show history of price updates
       if (
         options.history.enabled &&
@@ -137,7 +124,7 @@ const writeToStdout = (error, priceData) => {
         let symbol;
 
         // Determine history symbol
-        if (Math.abs(currentPriceValue - previousPriceValue).toFixed(4) > majorThreshold) {
+        if (Math.abs(currentPriceValue - previousPriceValue).toFixed(8) > majorThreshold) {
           symbol = currentPriceValue > previousPriceValue ?
             options.history.positiveMajorSymbol :
             options.history.negativeMajorSymbol;
@@ -196,12 +183,10 @@ const writeToStdout = (error, priceData) => {
 // Validate supplied options
 const validateOptions = () => {
   // eslint-disable-next-line max-len
-  const supportedConversions = ['AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'EUR', 'GBP', 'HKD', 'IDR', 'INR', 'JPY', 'KRW', 'MXN', 'RUB', 'USD'];
   const supportedTimeframes = ['1h', '24h', '7d'];
 
   if (
-    !options.currencies.length ||
-    supportedConversions.indexOf(options.convert.toUpperCase()) === -1 ||
+    !options.exchanges.length ||
     supportedTimeframes.indexOf(options.timeframe.toLowerCase()) === -1
   ) {
     writeToStdout(' ⚠ Supplied options are invalid', null);
@@ -212,46 +197,71 @@ const validateOptions = () => {
   return true;
 };
 
+// Create list of secondary currencies
+const listSecondaryCurrencies = () => {
+  let secondaries = [];
+
+  if (!options.exchanges.length) {
+    return;
+  }
+
+  options.exchanges.forEach(exchange => {
+    const [primary, secondary] = exchange.split(':');
+
+    secondaries.push(secondary);
+  });
+
+  return _.uniq(secondaries);
+};
+
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
   const priceData = {};
   const currencyNames = [];
+  const secondaryCurrencies = listSecondaryCurrencies();
+  const endpoints = secondaryCurrencies.map(currency => `https://api.coinmarketcap.com/v1/ticker/?convert=${currency}`);
+  let exchangeData = {};
+  let current = Promise.fulfilled();
 
-  needle.get(`https://api.coinmarketcap.com/v1/ticker/?convert=${options.convert}`, (error, response) => {
-    const body = response && response.body;
+  // Async calls to API, one for each requested currency
+  Promise.map(endpoints, endpoint => {
+    current = current.then(function () {
+      return get(endpoint);
+    });
 
-    if (!error && body && response.statusCode === 200) {
-      _.forEach(options.currencies, (currency) => {
-        const match = _.find(body, { symbol: currency.toUpperCase() });
-
-        if (!match) {
-          return;
-        }
-
-        const primaryCurrency = currency.toUpperCase();
-        const secondaryCurrency = options.convert.toUpperCase();
-
-        currencyNames.push(match.name);
-        priceData[primaryCurrency] = priceData[primaryCurrency] || {};
-        priceData[primaryCurrency][secondaryCurrency] = priceData[primaryCurrency][secondaryCurrency] || {};
-        priceData[primaryCurrency][secondaryCurrency] = match;
-
-        if (options.displayPriceBTC && primaryCurrency !== 'BTC') {
-          priceData[primaryCurrency].BTC = priceData[primaryCurrency].BTC || {};
-          priceData[primaryCurrency].BTC = match;
-        }
+    return current;
+  }).map(response => response.body).then(results => {
+    results.forEach(result => {
+      // Flatten data values into single currency object
+      result.forEach(item => {
+        exchangeData[item.symbol] = exchangeData[item.symbol] || {};
+        _.merge(exchangeData[item.symbol], item);
       });
+    });
 
-      const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+    // Create multi dimensional data structure for exchanges
+    options.exchanges.forEach(exchange => {
+      const [primary, secondary] = exchange.split(':');
+      const match = _.find(exchangeData, { symbol: primary.toUpperCase() });
 
-      // Calculate length of longest currency name
-      priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
-
-      if (priceData && sortedCurrencyNames.length) {
-        return writeToStdout(null, priceData);
+      if (match) {
+        currencyNames.push(match.name);
+        priceData[primary] = priceData[primary] || {};
+        priceData[primary][secondary] = priceData[primary][secondary] || {};
+        priceData[primary][secondary] = match;
       }
-    }
+    });
 
+    const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+
+    // Calculate length of longest currency name
+    priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
+
+    if (priceData && sortedCurrencyNames.length) {
+      return writeToStdout(null, priceData);
+    }
+  }).catch(e => {
+    console.log(e);
     return writeToStdout(' ⚠ Data retrieval error', null);
   });
 };

@@ -1,23 +1,24 @@
 {
   "pollInterval": 300000,
   "padding": 8,
-  "convert": "usd",
   "timeframe": "24h",
-  "displayPriceBTC": true,
   "history": {
     "enabled": true,
     "length": 12,
-    "minorThreshold": 0.0100,
-    "majorThreshold": 0.2000,
+    "minorThreshold": 0.01,
+    "majorThreshold": 0.20,
     "positiveMajorSymbol": "∙",
     "positiveMinorSymbol": "⋅",
     "neutralSymbol": "⋅",
     "negativeMinorSymbol": "⋅",
     "negativeMajorSymbol": "∙"
   },
-  "currencies": [
-    "btc",
-    "eth",
-    "xrp"
+  "exchanges": [
+    "btc:eth",
+    "btc:usd",
+    "eth:usd",
+    "eth:btc",
+    "gnt:eth",
+    "gnt:usd"
   ]
 }
