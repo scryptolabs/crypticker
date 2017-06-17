@@ -90,6 +90,10 @@ const writeToStdout = (message, priceData) => {
       let changeOutput = '';
       let historyChangeOutput = '';
 
+      if (!currentPriceData) {
+        return;
+      }
+
       // Show primary currency name
       if (previousPrimaryCurrency !== primaryCurrency) {
         primaryCurrencyOutput = colors.bold.white(
@@ -104,16 +108,16 @@ const writeToStdout = (message, priceData) => {
 
       // Show percent change in last 24 hours
       if (changePercentageFixed > 0) {
-        changeOutput = rightPad(colors.green(`▲ ${changePercentageFixed.toString()}%`), 8);
+        changeOutput = colors.green(rightPad(`▲ ${changePercentageFixed.toString()}%`, 8));
       } else if (changePercentageFixed < 0) {
-        changeOutput = rightPad(colors.red(`▼ ${(changePercentageFixed * -1).toFixed(2).toString()}%`), 8);
+        changeOutput = colors.red(rightPad(`▼ ${(changePercentageFixed * -1).toFixed(2).toString()}%`, 8));
       } else {
         changeOutput = rightPad(`- ${changePercentageFixed.toString()}%`, 8);
       }
 
       // Do not show change output for non-USD until API supports it
       if (secondaryCurrency.toLowerCase() !== 'usd') {
-        changeOutput = rightPad(' ', 7);
+        changeOutput = rightPad(' ', 8);
       }
 
       // Show history of price updates
@@ -140,7 +144,7 @@ const writeToStdout = (message, priceData) => {
             options.history.negativeMinorSymbol;
         }
 
-        priceDataHistory[dataKey] = priceDataHistory[dataKey] || new Array(options.history.length).fill(options.history.neutralSymbol);
+        priceDataHistory[dataKey] = priceDataHistory[dataKey] || new Array(options.history.length).fill(' ');
 
         if (
           currentPriceValue > previousPriceValue &&
