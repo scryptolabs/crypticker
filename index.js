@@ -33,7 +33,7 @@ if (args) {
 
   // Set exchanges
   if (args.exchanges && args.exchanges.length) {
-    options.exchanges = options.exchanges.replace(/[A-Za-z,:]+/, '').split(',');
+    options.exchanges = args.exchanges.replace(/[^A-Za-z,:]/g, '').split(',');
   }
 
   // Set timeframe
@@ -140,7 +140,7 @@ const writeToStdout = (error, priceData) => {
             options.history.negativeMinorSymbol;
         }
 
-        priceDataHistory[dataKey] = priceDataHistory[dataKey] || new Array(options.history.length).fill(' ');
+        priceDataHistory[dataKey] = priceDataHistory[dataKey] || new Array(options.history.length).fill(options.history.neutralSymbol);
 
         if (
           currentPriceValue > previousPriceValue &&
