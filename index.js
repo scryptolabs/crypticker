@@ -57,7 +57,7 @@ const priceDataHistory = {};
 let previousPrimaryCurrency = null;
 let statusOutput = '';
 const lastUpdate = +Date.now();
-const writeToStdout = (error, priceData) => {
+const writeToStdout = (message, priceData) => {
   let outputData = priceData;
 
   // Clear screen
@@ -72,7 +72,7 @@ const writeToStdout = (error, priceData) => {
       outputData = previousPriceData;
     }
 
-    statusOutput = colors.red(error) + lastUpdateText;
+    statusOutput = message + lastUpdateText;
   }
 
   // Loop through primary currencies
@@ -179,6 +179,7 @@ const writeToStdout = (error, priceData) => {
   });
 
   process.stdout.write(`${statusOutput}`);
+  statusOutput = '';
 
   previousPrimaryCurrency = null;
   previousPriceData = outputData;
@@ -195,7 +196,7 @@ const validateOptions = () => {
     !options.exchanges.length ||
     supportedTimeframes.indexOf(options.timeframe.toLowerCase()) === -1
   ) {
-    writeToStdout(' ⚠ Supplied options are invalid', null);
+    writeToStdout(colors.red(' ⚠ Supplied options are invalid'), null);
 
     return false;
   }
@@ -283,7 +284,7 @@ const retrieveMarketData = () => {
     }
   }).catch(e => {
     console.log(e);
-    return writeToStdout(' ⚠ Data retrieval error', null);
+    return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
   });
 };
 
@@ -292,5 +293,6 @@ if (validateOptions()) {
   setInterval(() => {
     retrieveMarketData();
   }, options.pollInterval);
+  writeToStdout(colors.yellow(' ⚠ Retrieving data...'), null);
   retrieveMarketData();
 }
