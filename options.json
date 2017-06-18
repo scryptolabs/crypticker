@@ -18,7 +18,7 @@
     "btc:usd",
     "eth:usd",
     "eth:btc",
-    "xmr:btc",
-    "xmr:usd"
+    "xrp:btc",
+    "xrp:usd"
   ]
 }

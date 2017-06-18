@@ -7,12 +7,11 @@ const _ = require('lodash');
 const os = require('os');
 const fs = require('fs');
 const yargs = require('yargs');
-const Promise = require('bluebird');
 const url = require('url');
+const async = require('async');
 let options = require('./options.json');
 
 const args = yargs.argv;
-const get = Promise.promisify(needle.get, needle);
 
 // Check for local configuration
 if (fs.existsSync(`${os.homedir()}/.crypticker`)) {
@@ -227,69 +226,76 @@ const listSecondaryCurrencies = () => {
 
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
-  const priceData = {};
-  const currencyNames = [];
   const secondaryCurrencies = listSecondaryCurrencies();
   const endpoints = secondaryCurrencies.map(currency => `https://api.coinmarketcap.com/v1/ticker/?convert=${currency}`);
-  let exchangeData = {};
-  let current = Promise.fulfilled();
 
   // Async calls to API, one for each requested currency
-  Promise.map(endpoints, endpoint => {
-    current = current.then(function () {
-      return get(endpoint);
-    });
-
-    return current;
-  }).map(response => response).then(results => {
-    results.forEach(result => {
-      const parsedUrl = url.parse(result.req.path, true);
-
-      // Flatten data values into single currency object
-      result.body.forEach(item => {
-        exchangeData[item.symbol] = exchangeData[item.symbol] || {};
-        // Unfortunately, API doesn't calculate 24 hour percentage changes per conversion currency
-        item[`percent_change_1h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_1h;
-        item[`percent_change_24h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_24h;
-        item[`percent_change_7d_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_7d;
-        item = _.omit(item, [
-          'id',
-          'available_supply',
-          'total_supply',
-          'percent_change_1h',
-          'percent_change_24h',
-          'percent_change_7d',
-          'last_updated'
-        ]);
-        _.merge(exchangeData[item.symbol], item);
-      });
-    });
-
-    // Create multi dimensional data structure for exchanges
-    options.exchanges.forEach(exchange => {
-      const [primary, secondary] = exchange.split(':');
-      const match = _.find(exchangeData, { symbol: primary.toUpperCase() });
-
-      if (match) {
-        currencyNames.push(match.name);
-        priceData[primary] = priceData[primary] || {};
-        priceData[primary][secondary] = priceData[primary][secondary] || {};
-        priceData[primary][secondary] = match;
+  async.mapSeries(endpoints, (endpoint, done) => {
+    needle.get(endpoint, (err, response) => {
+      if (err) {
+        return done(err);
       }
+
+      return done(null, response);
     });
-
-    const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
-
-    // Calculate length of longest currency name
-    priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
-
-    if (priceData && sortedCurrencyNames.length) {
-      return writeToStdout(null, priceData);
+  }, (err, results) => {
+    if (err) {
+      return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
     }
-  }).catch(e => {
-    console.log(e);
-    return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
+
+    return formatMarketData(results);
   });
+};
+
+const formatMarketData = (results) => {
+  const priceData = {};
+  const currencyNames = [];
+  let exchangeData = {};
+
+  results.forEach(result => {
+    const parsedUrl = url.parse(result.req.path, true);
+
+    // Flatten data values into single currency object
+    result.body.forEach(item => {
+      exchangeData[item.symbol] = exchangeData[item.symbol] || {};
+      // Unfortunately, API doesn't calculate 24 hour percentage changes per conversion currency
+      item[`percent_change_1h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_1h;
+      item[`percent_change_24h_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_24h;
+      item[`percent_change_7d_${parsedUrl.query.convert.toLowerCase()}`] = item.percent_change_7d;
+      item = _.omit(item, [
+        'id',
+        'available_supply',
+        'total_supply',
+        'percent_change_1h',
+        'percent_change_24h',
+        'percent_change_7d',
+        'last_updated'
+      ]);
+      _.merge(exchangeData[item.symbol], item);
+    });
+  });
+
+  // Create multi dimensional data structure for exchanges
+  options.exchanges.forEach(exchange => {
+    const [primary, secondary] = exchange.split(':');
+    const match = _.find(exchangeData, { symbol: primary.toUpperCase() });
+
+    if (match) {
+      currencyNames.push(match.name);
+      priceData[primary] = priceData[primary] || {};
+      priceData[primary][secondary] = priceData[primary][secondary] || {};
+      priceData[primary][secondary] = match;
+    }
+  });
+
+  const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+
+  // Calculate length of longest currency name
+  priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
+
+  if (priceData && sortedCurrencyNames.length) {
+    return writeToStdout(null, priceData);
+  }
 };
 
 // Kick out the jams
