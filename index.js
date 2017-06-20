@@ -58,6 +58,9 @@ let statusOutput = '';
 const lastUpdate = +Date.now();
 const writeToStdout = (message, priceData) => {
   let outputData = priceData;
+  const currencyNames = _.keys(priceData);
+  const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+  const longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
 
   // Clear screen
   process.stdout.write('\x1Bc');
@@ -97,12 +100,12 @@ const writeToStdout = (message, priceData) => {
       // Show primary currency name
       if (previousPrimaryCurrency !== primaryCurrency) {
         primaryCurrencyOutput = colors.bold.white(
-          ` › ${rightPad(currentPriceData.name, priceData.longestCurrencyNameLength)}`
+          ` › ${rightPad(currentPriceData.name, longestCurrencyNameLength)}`
         ) + leftPad('', options.padding);
         previousPrimaryCurrency = primaryCurrency;
       } else {
         primaryCurrencyOutput = colors.bold(
-          rightPad(' ', priceData.longestCurrencyNameLength + 3)
+          rightPad(' ', longestCurrencyNameLength + 3)
         ) + leftPad('', options.padding);
       }
 
@@ -224,7 +227,6 @@ const listSecondaryCurrencies = () => {
 // Format data retrieved from market endpoint
 const formatMarketData = (results) => {
   const priceData = {};
-  const currencyNames = [];
   const exchangeData = {};
 
   results.forEach((result) => {
@@ -258,19 +260,13 @@ const formatMarketData = (results) => {
     const match = _.find(exchangeData, { symbol: primary.toUpperCase() });
 
     if (match) {
-      currencyNames.push(match.name);
-      priceData[primary] = priceData[primary] || {};
-      priceData[primary][secondary] = priceData[primary][secondary] || {};
-      priceData[primary][secondary] = match;
+      priceData[match.name] = priceData[match.name] || {};
+      priceData[match.name][secondary] = priceData[match.name][secondary] || {};
+      priceData[match.name][secondary] = match;
     }
   });
 
-  const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
-
-  // Calculate length of longest currency name
-  priceData.longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
-
-  if (priceData && sortedCurrencyNames.length) {
+  if (priceData && _.keys(priceData).length) {
     return writeToStdout(null, priceData);
   }
 
