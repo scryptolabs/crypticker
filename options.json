@@ -1,10 +1,9 @@
 {
-  "pollInterval": 300000,
+  "pollInterval": 60000,
   "padding": 8,
-  "timeframe": "24h",
   "history": {
     "enabled": true,
-    "length": 12,
+    "length": 15,
     "minorThreshold": 0.01,
     "majorThreshold": 0.20,
     "positiveMajorSymbol": "∙",

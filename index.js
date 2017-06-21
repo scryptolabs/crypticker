@@ -84,11 +84,9 @@ const writeToStdout = (message, priceData) => {
     // Loop through secondary currencies
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentageKey = `percent_change_${options.timeframe.toLowerCase()}_${secondaryCurrency.toLowerCase()}`;
-      const changePercentageFixed = (+currentPriceData[changePercentageKey]).toFixed(2);
+      const changePercentageFixed = (Math.abs(+currentPriceData.change)).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency.toUpperCase() + leftPad('', options.padding);
-      const currentPriceKey = `price_${secondaryCurrency.toLowerCase()}`;
-      let currentPriceValue = +currentPriceData[currentPriceKey];
+      let currentPriceValue = +currentPriceData.price;
       let primaryCurrencyOutput = '';
       let changeOutput = '';
       let historyChangeOutput = '';
@@ -100,7 +98,7 @@ const writeToStdout = (message, priceData) => {
       // Show primary currency name
       if (previousPrimaryCurrency !== primaryCurrency) {
         primaryCurrencyOutput = colors.bold.white(
-          ` › ${rightPad(currentPriceData.name, longestCurrencyNameLength)}`
+          ` › ${rightPad(primaryCurrency, longestCurrencyNameLength)}`
         ) + leftPad('', options.padding);
         previousPrimaryCurrency = primaryCurrency;
       } else {
@@ -115,11 +113,11 @@ const writeToStdout = (message, priceData) => {
       } else if (changePercentageFixed < 0) {
         changeOutput = colors.red(rightPad(`▼ ${(changePercentageFixed * -1).toFixed(2).toString()}%`, 8));
       } else {
-        changeOutput = rightPad(`- ${changePercentageFixed.toString()}%`, 8);
+        changeOutput = rightPad(`  ${changePercentageFixed.toString()}%`, 8);
       }
 
       // Do not show change output for non-USD until API supports it
-      if (secondaryCurrency.toLowerCase() !== 'usd') {
+      if (changePercentageFixed == 0) {
         changeOutput = rightPad(' ', 8);
       }
 
@@ -129,9 +127,9 @@ const writeToStdout = (message, priceData) => {
         previousPriceData &&
         previousPriceData[primaryCurrency] &&
         previousPriceData[primaryCurrency][secondaryCurrency] &&
-        +(previousPriceData[primaryCurrency][secondaryCurrency][currentPriceKey])
+        +(previousPriceData[primaryCurrency][secondaryCurrency].price)
       ) {
-        const previousPriceValue = (previousPriceData[primaryCurrency][secondaryCurrency][currentPriceKey]);
+        const previousPriceValue = (previousPriceData[primaryCurrency][secondaryCurrency].price);
         const majorThreshold = options.history.majorThreshold;
         const dataKey = primaryCurrency + secondaryCurrency;
         let symbol;
@@ -196,12 +194,8 @@ const writeToStdout = (message, priceData) => {
 
 // Validate supplied options
 const validateOptions = () => {
-  // eslint-disable-next-line max-len
-  const supportedTimeframes = ['1h', '24h', '7d'];
-
   if (
-    !options.exchanges.length ||
-    supportedTimeframes.indexOf(options.timeframe.toLowerCase()) === -1
+    !options.exchanges.length
   ) {
     writeToStdout(colors.red(' ⚠ Supplied options are invalid'), null);
 
@@ -229,41 +223,11 @@ const formatMarketData = (results) => {
   const priceData = {};
   const exchangeData = {};
 
-  results.forEach((result) => {
-    const parsedUrl = url.parse(result.req.path, true);
-
-    // Flatten data values into single currency object
-    result.body.forEach((item) => {
-      let formattedItem = item;
-
-      exchangeData[formattedItem.symbol] = exchangeData[formattedItem.symbol] || {};
-      // Unfortunately, API doesn't calculate 24 hour percentage changes per conversion currency
-      formattedItem[`percent_change_1h_${parsedUrl.query.convert.toLowerCase()}`] = formattedItem.percent_change_1h;
-      formattedItem[`percent_change_24h_${parsedUrl.query.convert.toLowerCase()}`] = formattedItem.percent_change_24h;
-      formattedItem[`percent_change_7d_${parsedUrl.query.convert.toLowerCase()}`] = formattedItem.percent_change_7d;
-      formattedItem = _.omit(formattedItem, [
-        'id',
-        'available_supply',
-        'total_supply',
-        'percent_change_1h',
-        'percent_change_24h',
-        'percent_change_7d',
-        'last_updated'
-      ]);
-      _.merge(exchangeData[formattedItem.symbol], formattedItem);
-    });
-  });
-
   // Create multi dimensional data structure for exchanges
-  options.exchanges.forEach((exchange) => {
-    const [primary, secondary] = exchange.split(':');
-    const match = _.find(exchangeData, { symbol: primary.toUpperCase() });
-
-    if (match) {
-      priceData[match.name] = priceData[match.name] || {};
-      priceData[match.name][secondary] = priceData[match.name][secondary] || {};
-      priceData[match.name][secondary] = match;
-    }
+  results.forEach((result) => {
+    priceData[result.base] = priceData[result.base] || {};
+    priceData[result.base][result.target] = priceData[result.base][result.target] || {};
+    priceData[result.base][result.target] = result;
   });
 
   if (priceData && _.keys(priceData).length) {
@@ -275,17 +239,16 @@ const formatMarketData = (results) => {
 
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
-  const secondaryCurrencies = listSecondaryCurrencies();
-  const endpoints = secondaryCurrencies.map(currency => `https://api.coinmarketcap.com/v1/ticker/?convert=${currency}`);
+  const endpoints = options.exchanges.map(exchange => `https://api.cryptonator.com/api/ticker/${exchange.replace(':', '-')}`);
 
   // Async calls to API, one for each requested currency
   async.mapSeries(endpoints, (endpoint, done) => {
-    needle.get(endpoint, (err, response) => {
+    needle.get(endpoint, (err, response, body) => {
       if (err) {
         return done(err);
       }
 
-      return done(null, response);
+      return done(null, body && body.ticker);
     });
   }, (err, results) => {
     if (err) {
