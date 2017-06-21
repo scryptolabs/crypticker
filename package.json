@@ -26,7 +26,6 @@
     "moment": "^2.18.1",
     "needle": "^1.6.0",
     "right-pad": "^1.0.1",
-    "url": "^0.11.0",
     "yargs": "^8.0.1"
   },
   "devDependencies": {

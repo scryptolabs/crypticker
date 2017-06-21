@@ -13,11 +13,9 @@
     "negativeMajorSymbol": "∙"
   },
   "exchanges": [
-    "btc:eth",
     "btc:usd",
     "eth:usd",
     "eth:btc",
-    "xrp:btc",
     "xrp:usd"
   ]
 }

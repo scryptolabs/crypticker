@@ -25,7 +25,6 @@ crypticker
 | `--nohistory` | | Disable history display |
 | `--interval` | Integer | Set poll interval in milliseconds |
 | `--exchanges` | String | Comma separated list of exchange pairs |
-| `--timeframe` | String | Set timeframe of display change percentage |
 
 ### Options
 Exchange pairs and application preferences can be managed within `options.json`. If the package was installed globally, the installation directory (and corresponding `options.json`) file may be found with `npm ls crypticker`. Application will prefer an options file located at `~/.crypticker` if one exists - this can be used to preserve options between updates.
@@ -34,7 +33,6 @@ Exchange pairs and application preferences can be managed within `options.json`.
 | --- | --- | --- | --- |
 | pollInterval | Integer | Interval at which to poll API (in milliseconds) | `300000` |
 | padding | Integer | Number of spaces to use between display sections | `8` |
-| timeframe | String | Timeframe to display change percentage | `24h` |
 | history | Object | Parameters around ticker history display | |
 | history.enabled | Boolean | Toggles history display on and off | `true` |
 | history.length | Integer | Number of ticks to display within readout | `16` |
@@ -47,4 +45,4 @@ Exchange pairs and application preferences can be managed within `options.json`.
 | history.negativeMajorSymbol | String | Symbol to use for negative major trend | `"∙"` |
 | exchanges | Array | List of currency codes to monitor | `['btc:usd', 'eth:btc', ...]` |
 
-Powered by the [CoinMarketCap public API](https://coinmarketcap.com/api/). A listing of supported markets can be found [here](https://api.coinmarketcap.com/v1/ticker/).
+Powered by the [Cryptonator public API](https://www.cryptonator.com/api). A listing of supported currencies can be found [here](https://www.cryptonator.com/api/currencies).

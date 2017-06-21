@@ -7,7 +7,6 @@ const _ = require('lodash');
 const os = require('os');
 const fs = require('fs');
 const yargs = require('yargs');
-const url = require('url');
 const async = require('async');
 let options = require('./options.json');
 
@@ -33,11 +32,6 @@ if (args) {
   // Set exchanges
   if (args.exchanges && args.exchanges.length) {
     options.exchanges = args.exchanges.replace(/[^A-Za-z,:]/g, '').split(',');
-  }
-
-  // Set timeframe
-  if (args.timeframe) {
-    options.timeframe = args.timeframe;
   }
 }
 
@@ -84,7 +78,7 @@ const writeToStdout = (message, priceData) => {
     // Loop through secondary currencies
     _.forEach(secondaryCurrencies, (secondaryCurrency) => {
       const currentPriceData = outputData[primaryCurrency][secondaryCurrency];
-      const changePercentageFixed = (Math.abs(+currentPriceData.change)).toFixed(2);
+      const changePercentageFixed = (+((currentPriceData.change / currentPriceData.price) * 100)).toFixed(2);
       const secondaryCurrencyOutput = secondaryCurrency.toUpperCase() + leftPad('', options.padding);
       let currentPriceValue = +currentPriceData.price;
       let primaryCurrencyOutput = '';
@@ -116,8 +110,8 @@ const writeToStdout = (message, priceData) => {
         changeOutput = rightPad(`  ${changePercentageFixed.toString()}%`, 8);
       }
 
-      // Do not show change output for non-USD until API supports it
-      if (changePercentageFixed == 0) {
+      // Do not show change output if change is smaller than displayed floating point
+      if (changePercentageFixed === '-0.00') {
         changeOutput = rightPad(' ', 8);
       }
 
@@ -205,23 +199,9 @@ const validateOptions = () => {
   return true;
 };
 
-// Create list of secondary currencies
-const listSecondaryCurrencies = () => {
-  const secondaries = [];
-
-  options.exchanges.forEach((exchange) => {
-    const exchangeSplit = exchange.split(':');
-
-    secondaries.push(exchangeSplit[1]);
-  });
-
-  return _.uniq(secondaries);
-};
-
 // Format data retrieved from market endpoint
 const formatMarketData = (results) => {
   const priceData = {};
-  const exchangeData = {};
 
   // Create multi dimensional data structure for exchanges
   results.forEach((result) => {
