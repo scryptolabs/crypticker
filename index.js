@@ -200,14 +200,17 @@ const validateOptions = () => {
 };
 
 // Format data retrieved from market endpoint
-const formatMarketData = (results) => {
+const formatMarketData = (results, currencies) => {
   const priceData = {};
 
   // Create multi dimensional data structure for exchanges
   results.forEach((result) => {
-    priceData[result.base] = priceData[result.base] || {};
-    priceData[result.base][result.target] = priceData[result.base][result.target] || {};
-    priceData[result.base][result.target] = result;
+    let currencyName = _.find(currencies, { code: result.base });
+
+    currencyName = (currencyName && currencyName.name) || result.base;
+    priceData[currencyName] = priceData[currencyName] || {};
+    priceData[currencyName][result.target] = priceData[currencyName][result.target] || {};
+    priceData[currencyName][result.target] = result;
   });
 
   if (priceData && _.keys(priceData).length) {
@@ -220,22 +223,32 @@ const formatMarketData = (results) => {
 // Retrieve pricing information from endpoint
 const retrieveMarketData = () => {
   const endpoints = options.exchanges.map(exchange => `https://api.cryptonator.com/api/ticker/${exchange.replace(':', '-')}`);
+  const getOptions = {
+    open_timeout: 60000
+  };
 
-  // Async calls to API, one for each requested currency
-  async.mapSeries(endpoints, (endpoint, done) => {
-    needle.get(endpoint, (err, response, body) => {
-      if (err) {
-        return done(err);
-      }
-
-      return done(null, body && body.ticker);
-    });
-  }, (err, results) => {
-    if (err) {
+  // Retrieve list of cryptocurrencies
+  needle.get('https://api.cryptonator.com/api/currencies', getOptions, (currenciesErr, currenciesResponse, currencies) => {
+    if (currenciesErr) {
       return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
     }
 
-    return formatMarketData(results);
+    // Async calls to API, one for each requested currency
+    return async.mapSeries(endpoints, (endpoint, done) => {
+      needle.get(endpoint, getOptions, (currencyErr, currencyResponse, currency) => {
+        if (currencyErr) {
+          return done(currencyErr);
+        }
+
+        return done(null, currency && currency.ticker);
+      });
+    }, (err, results) => {
+      if (err) {
+        return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
+      }
+
+      return formatMarketData(results, currencies && currencies.rows);
+    });
   });
 };
 
