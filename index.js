@@ -26,7 +26,7 @@ if (args) {
 
   // Set interval
   if (parseInt(args.interval, 10)) {
-    options.pollInterval = parseInt(args.interval, 10);
+    options.interval = parseInt(args.interval, 10);
   }
 
   // Set exchanges
@@ -52,9 +52,6 @@ let statusOutput = '';
 const lastUpdate = +Date.now();
 const writeToStdout = (message, priceData) => {
   let outputData = priceData;
-  const currencyNames = _.keys(priceData);
-  const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
-  const longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
 
   // Clear screen
   process.stdout.write('\x1Bc');
@@ -70,6 +67,10 @@ const writeToStdout = (message, priceData) => {
 
     statusOutput = message + lastUpdateText;
   }
+
+  const currencyNames = _.keys(outputData);
+  const sortedCurrencyNames = currencyNames.sort((a, b) => b.length - a.length);
+  const longestCurrencyNameLength = sortedCurrencyNames && sortedCurrencyNames[0] && sortedCurrencyNames[0].length;
 
   // Loop through primary currencies
   _.forEach(_.keys(outputData).sort(), (primaryCurrency) => {
@@ -220,22 +221,38 @@ const formatMarketData = (results, currencies) => {
   return false;
 };
 
-// Retrieve pricing information from endpoint
-const retrieveMarketData = () => {
-  const endpoints = options.exchanges.map(exchange => `https://api.cryptonator.com/api/ticker/${exchange.replace(':', '-')}`);
-  const getOptions = {
-    open_timeout: 60000
-  };
 
-  // Retrieve list of cryptocurrencies
-  needle.get('https://api.cryptonator.com/api/currencies', getOptions, (currenciesErr, currenciesResponse, currencies) => {
+// Retrieve list of cryptocurrencies
+let currencyCache = null;
+const retrieveCurrencies = (callback) => {
+  if (currencyCache) {
+    return callback(currencyCache);
+  }
+
+  return needle.get('https://api.cryptonator.com/api/currencies', {
+    open_timeout: 60000
+  }, (currenciesErr, currenciesResponse, currencies) => {
     if (currenciesErr) {
       return writeToStdout(colors.red(' ⚠ Data retrieval error'), null);
     }
 
+    currencyCache = currencies;
+
+    return callback(currencies);
+  });
+};
+
+// Retrieve pricing information from endpoint
+const retrieveMarketData = () => {
+  const endpoints = options.exchanges.map(exchange => `https://api.cryptonator.com/api/ticker/${exchange.replace(':', '-')}`);
+
+  // Retrieve list of cryptocurrencies
+  retrieveCurrencies(currencies =>
     // Async calls to API, one for each requested currency
-    return async.mapSeries(endpoints, (endpoint, done) => {
-      needle.get(endpoint, getOptions, (currencyErr, currencyResponse, currency) => {
+    async.mapSeries(endpoints, (endpoint, done) => {
+      needle.get(endpoint, {
+        open_timeout: 60000
+      }, (currencyErr, currencyResponse, currency) => {
         if (currencyErr) {
           return done(currencyErr);
         }
@@ -248,15 +265,15 @@ const retrieveMarketData = () => {
       }
 
       return formatMarketData(results, currencies && currencies.rows);
-    });
-  });
+    })
+  );
 };
 
 // Kick out the jams
 if (validateOptions()) {
   setInterval(() => {
     retrieveMarketData();
-  }, options.pollInterval);
+  }, options.interval * 1000);
   writeToStdout(colors.yellow(' ⚠ Retrieving data...'), null);
   retrieveMarketData();
 }

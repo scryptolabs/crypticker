@@ -31,7 +31,7 @@ Exchange pairs and application preferences can be managed within `options.json`.
 
 | Parameter | Type | Description | Example |
 | --- | --- | --- | --- |
-| pollInterval | Integer | Interval at which to poll API (in milliseconds) | `300000` |
+| interval | Integer | Interval at which to poll API (in seconds) | `60` |
 | padding | Integer | Number of spaces to use between display sections | `8` |
 | history | Object | Parameters around ticker history display | |
 | history.enabled | Boolean | Toggles history display on and off | `true` |
